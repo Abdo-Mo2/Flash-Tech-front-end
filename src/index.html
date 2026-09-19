@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Flash Technology</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Flash Tech demo storefront for laptops, smartphones, tablets, and accessories.">
+   <!-- Defence-in-depth headers. On a static host also set these at the CDN/server
+        layer (see README); meta tags do not cover every directive (e.g. HSTS). -->
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta
+     http-equiv="Content-Security-Policy"
+     content="default-src 'self'; base-uri 'self'; object-src 'none'; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; form-action 'self';">
+  <link rel="icon" type="image/x-icon" href="flash.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Fonts are preconnected and use display=swap so text paints immediately
+        with a fallback font. Keeping this as a plain stylesheet link avoids an
+        inline onload handler, which the CSP (script-src 'self') would block. -->
+   <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    >
+</head>
+<body>
+  <app-root></app-root>
+</body>
+</html>

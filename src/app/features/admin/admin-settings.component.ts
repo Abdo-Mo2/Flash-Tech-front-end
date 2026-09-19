@@ -1,0 +1,4 @@
+import { Component, inject } from '@angular/core';
+import { AuthService } from '../../core/services/auth.service';
+@Component({selector:'app-admin-settings',standalone:true,template:`<div class="mb-6"><p class="mb-1 text-xs font-bold uppercase text-[var(--amber-700)]">Workspace</p><h1 class="font-['Space_Grotesk'] text-[30px] font-bold">Settings</h1></div><section class="max-w-[640px] rounded-lg border border-[var(--line)] bg-[var(--surface)] p-6"><h2 class="mb-2.5 font-['Space_Grotesk'] text-lg font-bold">Administrator session</h2><p>Signed in as <strong>{{auth.user()?.email}}</strong>.</p><p class="hint">Authorization is determined by the Supabase <code>profiles.role</code> value. Database RLS remains the security boundary.</p><button class="btn btn-secondary" type="button" (click)="auth.logout()">Log out</button></section>`})
+export class AdminSettingsComponent{readonly auth=inject(AuthService)}
