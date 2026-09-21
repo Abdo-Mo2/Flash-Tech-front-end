@@ -53,7 +53,7 @@ import { EmptyStateComponent } from '../../shared/components/empty-state.compone
             <div class="pd-divider"></div>
             <h2>Specifications</h2>
             <ul class="pd-specs">
-              @for (s of p.specifications; track s.label + s.value) { <li><span>{{ s.label }}</span><span>{{ s.value }}</span></li> }
+              @for (s of visibleSpecifications(p); track s.label) { <li><span>{{ s.label }}</span><span>{{ s.value }}</span></li> }
             </ul>
           </div>
           <aside class="pd-buybox">
@@ -121,6 +121,17 @@ export class ProductPageComponent {
   }
 
   inStock(product: Product): boolean { return isInStock(product); }
+  visibleSpecifications(product: Product): { label: string; value: string }[] {
+    const seen = new Set<string>();
+    return product.specifications.filter(spec => {
+      const label = spec.label.trim();
+      const labelKey = label.toLowerCase();
+      const value = String(spec.value ?? '').trim();
+      if (!label || !value || seen.has(labelKey)) return false;
+      seen.add(labelKey);
+      return true;
+    });
+  }
   add(product: Product): void { this.cart.add(product, this.qty); this.toast.show('Added to cart', 'success'); }
   ratingCount(product: Product, rating: number): number { return product.reviews.filter(review => Math.round(review.rating) === rating).length; }
   ratingPercent(product: Product, rating: number): number { return product.reviews.length ? this.ratingCount(product, rating) / product.reviews.length * 100 : 0; }

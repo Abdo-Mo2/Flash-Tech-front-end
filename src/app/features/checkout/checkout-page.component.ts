@@ -67,11 +67,23 @@ import { EmptyStateComponent } from '../../shared/components/empty-state.compone
             }
             @if (step === 3) {
               <h2 style="font-size:16px;margin-bottom:14px">Review</h2>
-              <p>{{ fullName }} · {{ phone }}</p>
-              <p>{{ address }}</p>
-              <p>Payment: Cash on delivery</p>
-              <details style="margin:16px 0"><summary>Return and exchange policy</summary><p class="hint">Return and exchange terms are confirmed with customer support before purchase. Keep your invoice and the product packaging, then contact support if you need help with an order.</p></details>
-              <button class="btn btn-primary" type="button" [disabled]="busy()" (click)="place()">{{ busy() ? 'Placing order…' : 'Place order' }}</button>
+              <div class="review-block">
+                <h3 class="review-block-title">Customer details</h3>
+                <dl class="review-list">
+                  <div class="review-item"><dt>Customer name</dt><dd>{{ fullName }}</dd></div>
+                  <div class="review-item"><dt>Phone number</dt><dd>{{ phone }}</dd></div>
+                  <div class="review-item"><dt>Address</dt><dd>{{ address }}</dd></div>
+                </dl>
+              </div>
+              <div class="review-block">
+                <h3 class="review-block-title">Payment method</h3>
+                <div class="review-payment">
+                  <span class="review-payment-icon" aria-hidden="true">₤</span>
+                  <div><strong>Cash on delivery</strong><span>Pay the courier when your order arrives.</span></div>
+                </div>
+              </div>
+              <details class="review-policy"><summary>Return and exchange policy</summary><p class="hint">Return and exchange terms are confirmed with customer support before purchase. Keep your invoice and the product packaging, then contact support if you need help with an order.</p></details>
+              <button class="btn btn-primary review-submit" type="button" [disabled]="busy()" (click)="place()">{{ busy() ? 'Placing order…' : 'Place order' }}</button>
               @if (error()) { <p class="err-msg" role="alert">{{ error() }}</p> }
             }
           </div>
@@ -80,7 +92,6 @@ import { EmptyStateComponent } from '../../shared/components/empty-state.compone
             @for (item of cart.lines(); track item.productId) {
               <div class="summary-row"><span>{{ item.title }} × {{ item.quantity }}</span><span>{{ item.unitPrice * item.quantity | egp }}</span></div>
             }
-            <div class="summary-row"><span>Shipping</span><span>{{ cart.shipping() | egp }}</span></div>
             <div class="summary-row total"><span>Total</span><span>{{ cart.total() | egp }}</span></div>
           </aside>
         </div>

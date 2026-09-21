@@ -1,12 +1,10 @@
 import { Component, OnDestroy, inject, signal } from '@angular/core';
-import { NgClass } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Product } from '../../core/models/product.model';
 import { ProductService } from '../../core/services/product.service';
 import { HeroService, HeroSlide } from '../../core/services/hero.service';
 import { CategoryService, StoreApiCategory } from '../../core/services/category.service';
-import { ToastService } from '../../core/services/toast.service';
 import { ProductCardComponent } from '../../shared/components/product-card.component';
 import { ProductSkeletonComponent } from '../../shared/components/product-skeleton.component';
 import { EmptyStateComponent } from '../../shared/components/empty-state.component';
@@ -17,53 +15,66 @@ import { EmptyStateComponent } from '../../shared/components/empty-state.compone
   imports: [
     RouterLink,
     FormsModule,
-    NgClass,
     ProductCardComponent,
     ProductSkeletonComponent,
     EmptyStateComponent
   ],
   template: `
-    <section class="bg-[var(--black)] pt-6" aria-roledescription="carousel" aria-label="Featured offers">
+    <section class="home-hero" aria-roledescription="carousel" aria-label="Featured offers">
       @if (slides().length) {
-        <div class="mx-auto max-w-[1440px] px-4 md:px-6">
-          <div class="relative home-hero-wrap">
-            <a
-              class="relative block w-full overflow-hidden rounded-2xl bg-[var(--black)] text-[var(--ink)] no-underline home-hero-frame"
-              [class]="heroTransition() === 'a' ? 'hero-enter-a' : 'hero-enter-b'"
-              [routerLink]="slides()[heroIndex()].cta_destination"
-            >
-              @if (slides()[heroIndex()].image_url) {
-                <img
-                  [src]="heroImageFailed() ? fallbackImage : slides()[heroIndex()].image_url"
-                  [alt]="slides()[heroIndex()].title"
-                  (error)="heroImageFailed.set(true)"
-                  width="1920"
-                  height="720"
-                  fetchpriority="high"
-                  decoding="async"
-                />
-              } @else {
-                <div class="flex h-full flex-col justify-center bg-[radial-gradient(circle_at_80%_45%,#413116_0%,transparent_20%),linear-gradient(115deg,#171310,#2a2013_45%,#0a0908)] p-6 sm:p-10 lg:p-16" aria-hidden="true">
-                  <span class="max-w-[58%] font-['Space_Grotesk'] text-[clamp(32px,6.2vw,74px)] font-bold uppercase leading-[0.98] tracking-[-0.055em] text-[var(--ink)]">{{ slides()[heroIndex()].title }}</span>
-                  <small class="mt-4 text-[clamp(13px,1.6vw,19px)] text-[var(--text-2)]">{{ slides()[heroIndex()].description }}</small>
-                </div>
+        <div
+          class="home-hero-wrap"
+          tabindex="0"
+          (mouseenter)="pauseHero()"
+          (mouseleave)="resumeHero()"
+          (focusin)="pauseHero()"
+          (focusout)="resumeHero()"
+          (keydown)="onHeroKeydown($event)"
+        >
+          <div class="home-hero-viewport">
+            <div class="home-hero-track" [style.transform]="'translateX(-' + heroIndex() * 100 + '%)'">
+              @for (slide of slides(); track slide.id; let i = $index) {
+                <a
+                  class="home-hero-slide"
+                  [routerLink]="slide.cta_destination"
+                  [attr.aria-hidden]="i !== heroIndex()"
+                  [attr.tabindex]="i === heroIndex() ? 0 : -1"
+                  [attr.aria-label]="slide.title"
+                >
+                  @if (slide.image_url && !heroImageFailed().has(slide.id)) {
+                    <img
+                      [src]="slide.image_url"
+                      [alt]="slide.title"
+                      (error)="onHeroImageError(slide.id)"
+                      [attr.fetchpriority]="i === 0 ? 'high' : 'lazy'"
+                      decoding="async"
+                    />
+                  } @else {
+                    <div class="hero-art" aria-hidden="true">
+                      <span>{{ slide.title }}</span>
+                      <small>{{ slide.description }}</small>
+                    </div>
+                  }
+                  <span class="home-hero-caption">{{ slide.title }}</span>
+                </a>
               }
-              <span class="sr-only">{{ slides()[heroIndex()].title }}</span>
-            </a>
-            <button class="absolute left-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/15 bg-[rgba(10,9,8,0.42)] text-3xl text-[var(--ink)] opacity-60 transition hover:bg-[var(--amber)] hover:text-[var(--black)] sm:left-6" type="button" aria-label="Previous slide" (click)="prevHero()">‹</button>
-            <button class="absolute right-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/15 bg-[rgba(10,9,8,0.42)] text-3xl text-[var(--ink)] opacity-60 transition hover:bg-[var(--amber)] hover:text-[var(--black)] sm:right-6" type="button" aria-label="Next slide" (click)="nextHero()">›</button>
-            <div class="absolute bottom-5 left-1/2 flex -translate-x-1/2 gap-2">
+            </div>
+          </div>
+          @if (slides().length > 1) {
+            <button class="home-hero-arrow previous" type="button" aria-label="Previous slide" (click)="prevHero()">‹</button>
+            <button class="home-hero-arrow next" type="button" aria-label="Next slide" (click)="nextHero()">›</button>
+            <div class="home-hero-dots">
               @for (s of slides(); track s.id; let i = $index) {
                 <button
-                  [ngClass]="i === heroIndex() ? 'w-5 bg-[var(--amber)]' : 'w-1.5 bg-white/40'"
-                  class="h-1.5 rounded-full border-0 p-0 transition-all"
+                  [class.active]="i === heroIndex()"
                   [attr.aria-label]="'Go to slide ' + (i + 1)"
+                  [attr.aria-current]="i === heroIndex()"
                   type="button"
                   (click)="goToHero(i)"
                 ></button>
               }
             </div>
-          </div>
+          }
         </div>
       }
     </section>
@@ -81,8 +92,8 @@ import { EmptyStateComponent } from '../../shared/components/empty-state.compone
       } @else if (loadingFeatured()) {
         <div class="grid4"><app-product-skeleton [count]="8" /></div>
       } @else {
-        <div class="grid4 home-product-grid">
-          @for (p of trending().slice(0, 8); track p.id) { <app-product-card [product]="p" /> }
+        <div class="product-slider" #trendingTrack>
+          @for (p of trending().slice(0, 8); track p.id) { <app-product-card class="product-slide" [product]="p" /> }
         </div>
       }
       </section>
@@ -97,7 +108,7 @@ import { EmptyStateComponent } from '../../shared/components/empty-state.compone
           <div class="home-discovery-grid" #categoryTrack>
           @for (category of categories(); track category.slug) {
             <a class="home-discovery-tile" [routerLink]="['/shop', category.slug]">
-              <img [src]="categoryImage(category.slug)" [alt]="category.name" />
+              <img [src]="categoryImage(category.slug)" [alt]="category.name" width="640" height="480" loading="lazy" decoding="async" />
               <span>{{ category.name }}</span>
               <i>›</i>
             </a>
@@ -116,8 +127,8 @@ import { EmptyStateComponent } from '../../shared/components/empty-state.compone
       @if (loadingTrend()) {
         <div class="grid4"><app-product-skeleton [count]="8" /></div>
       } @else {
-        <div class="grid4 home-product-grid">
-          @for (p of newReleases().slice(0, 8); track p.id) { <app-product-card [product]="p" /> }
+        <div class="product-slider" #releasesTrack>
+          @for (p of newReleases().slice(0, 8); track p.id) { <app-product-card class="product-slide" [product]="p" /> }
         </div>
       }
       </section>
@@ -160,7 +171,6 @@ export class HomePageComponent implements OnDestroy {
   private readonly products = inject(ProductService);
   private readonly heroes = inject(HeroService);
   private readonly categoryService = inject(CategoryService);
-  private readonly toast = inject(ToastService);
 
   readonly featured = signal<Product[]>([]);
   readonly trending = signal<Product[]>([]);
@@ -170,25 +180,53 @@ export class HomePageComponent implements OnDestroy {
   readonly newReleases = signal<Product[]>([]);
   readonly deals = signal<Product[]>([]);
   readonly heroIndex = signal(0);
-  readonly heroTransition = signal<'a' | 'b'>('a');
-  readonly heroImageFailed = signal(false);
-  readonly fallbackImage = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480"%3E%3Crect width="640" height="480" fill="%23f2f3f1"/%3E%3Cpath d="M220 150h200v180H220z" fill="none" stroke="%2371776f" stroke-width="14"/%3E%3Ccircle cx="280" cy="210" r="24" fill="%23d2a037"/%3E%3Cpath d="m240 300 65-65 45 45 30-30 40 50" fill="none" stroke="%2371776f" stroke-width="14"/%3E%3C/svg%3E';
+  readonly heroImageFailed = signal<Set<string>>(new Set());
   readonly loadingFeatured = signal(true);
   readonly loadingTrend = signal(true);
   readonly featuredError = signal(false);
-  readonly promoImage = signal('');
-  newsEmail = '';
-  private timer?: number;
+  private heroTimer?: number;
 
   constructor() {
     this.load();
     this.heroes.listActive().subscribe({ next: slides => this.slides.set(slides) });
     this.categoryService.getApiCategories().subscribe({ next: categories => this.categories.set(categories.slice(0, 8)) });
-    this.timer = window.setInterval(() => this.nextHero(), 7000);
+    this.startHeroAutoplay();
   }
 
   ngOnDestroy(): void {
-    if (this.timer) window.clearInterval(this.timer);
+    this.stopHeroAutoplay();
+  }
+
+  /** Advance to the next slide every 5s, looping back after the last one. */
+  private startHeroAutoplay(): void {
+    this.stopHeroAutoplay();
+    this.heroTimer = window.setInterval(() => this.nextHero(), 5000);
+  }
+
+  private stopHeroAutoplay(): void {
+    if (this.heroTimer) window.clearInterval(this.heroTimer);
+    this.heroTimer = undefined;
+  }
+
+  /** Pause while the hero is hovered or focused, then resume on the way out. */
+  pauseHero(): void {
+    this.stopHeroAutoplay();
+  }
+
+  resumeHero(): void {
+    if (this.slides().length > 1) this.startHeroAutoplay();
+  }
+
+  /** Left/right arrow keys move between slides when the hero has focus. */
+  onHeroKeydown(event: KeyboardEvent): void {
+    if (this.slides().length < 2) return;
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      this.nextHero();
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      this.prevHero();
+    }
   }
 
   load(): void {
@@ -211,8 +249,7 @@ export class HomePageComponent implements OnDestroy {
         this.trending.set(items.slice(0, 8));
         this.newReleases.set(items.slice(0, 8));
         this.deals.set(items.filter(item => item.discountPercentage > 0).slice(0, 8));
-        this.brands.set([...new Set(items.map(item => item.brand).filter(Boolean))].slice(0, 8));
-        this.promoImage.set(items[0]?.thumbnail ?? '');
+        this.brands.set([...new Set(items.map(item => item.brand).filter(Boolean))].sort((a, b) => a.localeCompare(b)));
         this.loadingTrend.set(false);
       },
       error: () => this.loadingTrend.set(false)
@@ -221,21 +258,23 @@ export class HomePageComponent implements OnDestroy {
 
   nextHero(): void {
     const n = this.slides().length;
-    if (!n) return;
+    if (n < 2) return;
     this.goToHero((this.heroIndex() + 1) % n);
   }
 
   prevHero(): void {
     const n = this.slides().length;
-    if (!n) return;
+    if (n < 2) return;
     this.goToHero((this.heroIndex() - 1 + n) % n);
   }
 
   goToHero(index: number): void {
     if (index === this.heroIndex()) return;
-    this.heroImageFailed.set(false);
-    this.heroTransition.update(value => value === 'a' ? 'b' : 'a');
     this.heroIndex.set(index);
+  }
+
+  onHeroImageError(id: string): void {
+    this.heroImageFailed.update(current => new Set(current).add(id));
   }
 
   categoryImage(slug: string): string {
@@ -257,12 +296,6 @@ export class HomePageComponent implements OnDestroy {
     if (!track) return;
     const distance = track.clientWidth * 0.8;
     track.scrollBy({ left: direction === 'right' ? distance : -distance, behavior: 'smooth' });
-  }
-
-  join(event: Event): void {
-    event.preventDefault();
-    this.toast.show('Subscribed. You’ll hear from us on restocks only.', 'success');
-    this.newsEmail = '';
   }
 
 }

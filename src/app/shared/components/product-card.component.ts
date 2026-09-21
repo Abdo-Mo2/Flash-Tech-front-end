@@ -15,7 +15,7 @@ import { ListEgpPipe, SaleEgpPipe } from '../pipes/price.pipe';
       <article class="prod-card">
         <div class="img">
           <a [routerLink]="['/product', product.id]" class="block h-full w-full">
-            <img class="h-full w-full object-contain object-center" [src]="product.thumbnail || fallbackImage" [alt]="product.title" (error)="useFallback($event)" />
+            <img class="h-full w-full object-contain object-center" [src]="product.thumbnail || fallbackImage" [alt]="product.title" width="640" height="480" loading="lazy" decoding="async" (error)="useFallback($event)" />
           </a>
           @if (product.discountPercentage >= 1) {
             <span class="product-sale-badge">-{{ product.discountPercentage | number:'1.0-0' }}%</span>

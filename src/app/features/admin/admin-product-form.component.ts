@@ -1,7 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { AdminCategory, ProductInput } from '../../core/models/admin.model';
+import { AdminCategory, ProductInput, SpecField } from '../../core/models/admin.model';
 import { Product } from '../../core/models/product.model';
 import { AdminService } from '../../core/services/admin.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -25,7 +25,20 @@ import { ToastService } from '../../core/services/toast.service';
           <label class="check"><input type="checkbox" name="active" [(ngModel)]="form.isActive" /> Active product</label>
           <div class="full image-upload"><div><strong>Product images</strong><p class="hint">Add one or more image files from your device.</p></div><input #imagePicker class="visually-hidden" type="file" accept="image/*" (change)="onImageSelected($event)" [disabled]="busy" /><button class="btn btn-secondary" type="button" (click)="imagePicker.click()" [disabled]="busy">Add image</button></div>
           @if (selectedImageNames.length) { <div class="full image-list">@for (name of selectedImageNames; track name; let index = $index) { <span>{{ name }} <button type="button" (click)="removeSelectedImage(index)" [disabled]="busy" [attr.aria-label]="'Remove ' + name">Remove</button></span> }</div> } @else if (form.images.length) { <p class="full selected-images">{{ form.images.length }} saved image{{ form.images.length === 1 ? '' : 's' }}.</p> }
-          <div class="full specs"><div><strong>Specifications</strong><p class="hint">Fields update for the selected category.</p></div><div class="spec-grid">@for (field of specificationFields(); track field.key) { <label>{{ field.label }}<input class="field" [name]="field.key" [(ngModel)]="specificationValues[field.key]" [placeholder]="field.example" /></label> }</div></div>
+          <div class="full specs">
+            <div><strong>Specifications</strong><p class="hint">{{ form.category ? 'Fields update for the selected category.' : 'Choose a category to see the matching specifications.' }}</p></div>
+            @if (specificationFields().length) {
+              <div class="spec-grid">
+                @for (field of specificationFields(); track field.key) {
+                  @if (field.options?.length) {
+                    <label>{{ field.label }}<select class="select" [name]="field.key" [(ngModel)]="specificationValues[field.key]"><option value="">Select {{ field.label.toLowerCase() }}</option>@for (option of field.options; track option) { <option [value]="option">{{ option }}</option> }</select></label>
+                  } @else {
+                    <label>{{ field.label }}<input class="field" [name]="field.key" [(ngModel)]="specificationValues[field.key]" [placeholder]="field.example" /></label>
+                  }
+                }
+              </div>
+            }
+          </div>
           <label class="full">Other specifications <span class="hint">one key/value pair per line, for anything not listed above</span><textarea class="field" name="otherSpecs" [(ngModel)]="otherSpecifications" rows="3" placeholder="For example: Colour: Black"></textarea></label>
           <label class="full">Description<textarea class="field" name="description" [(ngModel)]="form.description" rows="5" minlength="12" maxlength="2000" required></textarea></label>
           <label>Warranty<input class="field" name="warranty" [(ngModel)]="form.warrantyInformation" /></label>
@@ -105,18 +118,132 @@ export class AdminProductFormComponent {
 
   onCategoryChange(): void { this.specificationValues = { ...this.specificationValues }; }
 
-  specificationFields(): { key: string; label: string; example: string }[] {
+  specificationFields(): SpecField[] {
     const category = this.form.category.toLowerCase();
-    if (/(gpu|graphics|graphic)/.test(category)) return [{ key:'vram', label:'VRAM', example:'16 GB' }, { key:'memory_type', label:'Memory type', example:'GDDR7' }, { key:'memory_bus', label:'Memory bus', example:'256-bit' }, { key:'boost_clock', label:'Boost clock', example:'2610 MHz' }, { key:'tgp', label:'TGP', example:'300 W' }];
-    if (/(monitor|display)/.test(category)) return [{ key:'screen_size', label:'Screen size', example:'27 inch' }, { key:'resolution', label:'Resolution', example:'2560 × 1440' }, { key:'panel_type', label:'Panel type', example:'IPS' }, { key:'refresh_rate', label:'Refresh rate', example:'180 Hz' }, { key:'response_time', label:'Response time', example:'1 ms' }];
-    if (/(laptop)/.test(category)) return [{ key:'cpu', label:'CPU', example:'Intel Core i7' }, { key:'gpu', label:'GPU', example:'RTX 5060' }, { key:'ram', label:'RAM', example:'16 GB DDR5' }, { key:'storage', label:'Storage', example:'1 TB SSD' }, { key:'display', label:'Display', example:'15.6 inch QHD' }, { key:'refresh_rate', label:'Refresh rate', example:'165 Hz' }];
-    if (/(cpu|processor)/.test(category)) return [{ key:'socket', label:'Socket', example:'AM5' }, { key:'cores', label:'Cores', example:'8' }, { key:'threads', label:'Threads', example:'16' }, { key:'base_clock', label:'Base clock', example:'4.2 GHz' }, { key:'boost_clock', label:'Boost clock', example:'5.0 GHz' }, { key:'cache', label:'Cache', example:'32 MB' }];
-    if (/(ram|memory)/.test(category)) return [{ key:'capacity', label:'Capacity', example:'32 GB' }, { key:'type', label:'Type', example:'DDR5' }, { key:'speed', label:'Speed', example:'6000 MT/s' }, { key:'latency', label:'Latency', example:'CL36' }];
-    if (/(storage|ssd|hdd)/.test(category)) return [{ key:'capacity', label:'Capacity', example:'1 TB' }, { key:'type', label:'Type', example:'NVMe SSD' }, { key:'interface', label:'Interface', example:'PCIe 4.0' }, { key:'read_speed', label:'Read speed', example:'7300 MB/s' }, { key:'write_speed', label:'Write speed', example:'6300 MB/s' }];
-    if (/(motherboard)/.test(category)) return [{ key:'socket', label:'Socket', example:'AM5' }, { key:'chipset', label:'Chipset', example:'B650' }, { key:'ram_type', label:'RAM type', example:'DDR5' }, { key:'form_factor', label:'Form factor', example:'ATX' }];
-    return [{ key:'type', label:'Type', example:'Gaming accessory' }, { key:'compatibility', label:'Compatibility', example:'PC / PS5' }];
+    if (!category) return [];
+    if (/(gpu|graphics|graphic)/.test(category)) {
+      return [
+        { key: 'gpu_model', label: 'GPU model', example: 'GeForce RTX 5070 Ti' },
+        { key: 'vram', label: 'VRAM', example: '16 GB' },
+        { key: 'memory_type', label: 'Memory type', example: 'GDDR7' },
+        { key: 'memory_bus', label: 'Memory bus', example: '256-bit' },
+        { key: 'interface', label: 'Interface / bus', example: 'PCIe 5.0 x16' },
+        { key: 'clock_speed', label: 'Clock speed', example: '2610 MHz' },
+        { key: 'tgp', label: 'Power (TGP)', example: '300 W' }
+      ];
+    }
+    if (/(monitor|display)/.test(category)) {
+      return [
+        { key: 'display_size', label: 'Display size', example: '27 inch' },
+        { key: 'resolution', label: 'Resolution', example: '2560 x 1440' },
+        { key: 'refresh_rate', label: 'Refresh rate', example: '180 Hz' },
+        { key: 'panel_type', label: 'Panel type', example: 'IPS' },
+        { key: 'response_time', label: 'Response time', example: '1 ms' },
+        { key: 'aspect_ratio', label: 'Aspect ratio', example: '16:9' },
+        { key: 'connectivity', label: 'Connectivity / ports', example: 'HDMI 2.1, DisplayPort 1.4' }
+      ];
+    }
+    if (/(laptop|notebook)/.test(category)) {
+      return [
+        { key: 'cpu', label: 'Processor / CPU', example: 'Intel Core i7-13700H' },
+        { key: 'gpu', label: 'GPU', example: 'GeForce RTX 5060' },
+        { key: 'ram', label: 'RAM', options: ['8 GB', '16 GB', '32 GB', '64 GB'] },
+        { key: 'storage', label: 'Storage', example: '1 TB NVMe SSD' },
+        { key: 'display_size', label: 'Display size', example: '15.6 inch' },
+        { key: 'resolution', label: 'Resolution', example: '2560 x 1440' },
+        { key: 'refresh_rate', label: 'Refresh rate', example: '165 Hz' },
+        { key: 'operating_system', label: 'Operating system', example: 'Windows 11 Home' }
+      ];
+    }
+    if (/(desktop|prebuilt|pc|tower)/.test(category)) {
+      return [
+        { key: 'cpu', label: 'Processor / CPU', example: 'AMD Ryzen 7 7800X3D' },
+        { key: 'gpu', label: 'GPU', example: 'GeForce RTX 4070' },
+        { key: 'ram', label: 'RAM', options: ['8 GB', '16 GB', '32 GB', '64 GB'] },
+        { key: 'storage', label: 'Storage', example: '1 TB NVMe SSD' },
+        { key: 'motherboard', label: 'Motherboard', example: 'B650' },
+        { key: 'psu', label: 'PSU', example: '750 W 80+ Gold' },
+        { key: 'case', label: 'Case', example: 'Mid-tower ATX' }
+      ];
+    }
+    if (/(cpu|processor)/.test(category)) {
+      return [
+        { key: 'cpu_model', label: 'CPU model', example: 'Ryzen 7 7800X3D' },
+        { key: 'cores', label: 'Cores', example: '8' },
+        { key: 'threads', label: 'Threads', example: '16' },
+        { key: 'base_clock', label: 'Base clock', example: '4.2 GHz' },
+        { key: 'boost_clock', label: 'Boost clock', example: '5.0 GHz' },
+        { key: 'socket', label: 'Socket', example: 'AM5' },
+        { key: 'architecture', label: 'Generation / architecture', example: 'Zen 4' }
+      ];
+    }
+    if (/(ram|memory)/.test(category)) {
+      return [
+        { key: 'capacity', label: 'Capacity', example: '32 GB' },
+        { key: 'type', label: 'Type', example: 'DDR5' },
+        { key: 'speed', label: 'Speed', example: '6000 MT/s' },
+        { key: 'latency', label: 'Latency', example: 'CL36' }
+      ];
+    }
+    if (/(storage|ssd|hdd|drive)/.test(category)) {
+      return [
+        { key: 'capacity', label: 'Capacity', example: '1 TB' },
+        { key: 'type', label: 'Type', example: 'NVMe SSD' },
+        { key: 'interface', label: 'Interface', example: 'PCIe 4.0' },
+        { key: 'read_speed', label: 'Read speed', example: '7300 MB/s' },
+        { key: 'write_speed', label: 'Write speed', example: '6300 MB/s' }
+      ];
+    }
+    if (/(motherboard|mainboard)/.test(category)) {
+      return [
+        { key: 'socket', label: 'Socket', example: 'AM5' },
+        { key: 'chipset', label: 'Chipset', example: 'B650' },
+        { key: 'ram_type', label: 'RAM type', example: 'DDR5' },
+        { key: 'form_factor', label: 'Form factor', example: 'ATX' }
+      ];
+    }
+    if (/(headphone|headset|earphone|audio|speaker)/.test(category)) {
+      return [
+        { key: 'type', label: 'Type', example: 'Over-ear' },
+        { key: 'connectivity', label: 'Connectivity', example: 'Wireless / USB-C' },
+        { key: 'compatibility', label: 'Compatibility', example: 'PC / PS5 / Mobile' },
+        { key: 'battery_life', label: 'Battery life', example: '30 hours' }
+      ];
+    }
+    if (/(keyboard|mouse|mice)/.test(category)) {
+      return [
+        { key: 'type', label: 'Type', example: 'Mechanical' },
+        { key: 'connectivity', label: 'Connectivity', example: 'USB / Wireless' },
+        { key: 'compatibility', label: 'Compatibility', example: 'PC / Mac' }
+      ];
+    }
+    // Generic fallback keeps any other category usable without irrelevant fields.
+    return [
+      { key: 'type', label: 'Type', example: 'Gaming accessory' },
+      { key: 'connectivity', label: 'Connectivity', example: 'USB-C' },
+      { key: 'compatibility', label: 'Compatibility', example: 'PC / PS5' }
+    ];
   }
 
-  private populate(product: Product): void { this.form = { ...product }; this.form.thumbnail = product.images[0] ?? ''; const known = new Set(this.specificationFields().map(field => field.label.toLowerCase())); this.model = product.specifications.find(spec => spec.label.toLowerCase() === 'model')?.value ?? ''; this.specificationValues = Object.fromEntries(product.specifications.filter(spec => known.has(spec.label.toLowerCase())).map(spec => [spec.label.toLowerCase().replace(/\s+/g, '_'), spec.value])); this.otherSpecifications = product.specifications.filter(spec => !known.has(spec.label.toLowerCase()) && !['model', 'sku'].includes(spec.label.toLowerCase())).map(spec => `${spec.label}: ${spec.value}`).join('\n'); this.loading = false; }
+  private populate(product: Product): void {
+    this.form = { ...product };
+    this.form.thumbnail = product.images[0] ?? '';
+    const fields = this.specificationFields();
+    const byKey = new Map(fields.map(field => [field.key, field]));
+    const labelToKey = new Map(fields.map(field => [field.label.toLowerCase(), field.key]));
+    const values: Record<string, string> = {};
+    const extras: string[] = [];
+    for (const spec of product.specifications) {
+      const label = spec.label.toLowerCase();
+      if (label === 'model') { this.model = spec.value; continue; }
+      if (label === 'sku') { this.form.sku = this.form.sku || spec.value; continue; }
+      const key = labelToKey.get(label) ?? (byKey.has(label) ? label : undefined);
+      if (key) values[key] = spec.value;
+      else extras.push(`${spec.label}: ${spec.value}`);
+    }
+    this.specificationValues = values;
+    this.otherSpecifications = extras.join('\n');
+    this.loading = false;
+  }
   private lines(value: string): string[] { return value.split(/\r?\n/).map(item => item.trim()).filter(Boolean); }
 }

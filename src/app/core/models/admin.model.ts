@@ -7,3 +7,10 @@ export interface AdminOrderItem { product_id: string | null; title: string; qty:
 export interface AdminOrder { id: string; user_id: string | null; status: string; total: number; placed_at: string; profiles?: { email: string | null } | null; order_items?: AdminOrderItem[]; }
 export interface AdminCategory { slug: string; name: string; blurb: string | null; icon: string | null; sort_order: number; }
 export type ProductInput = Omit<Product, 'id' | 'reviews'>;
+
+export interface SpecField {
+  key: string;
+  label: string;
+  example?: string;
+  options?: string[];
+}
