@@ -29,14 +29,14 @@ import { EmptyStateComponent } from '../../shared/components/empty-state.compone
           <p class="hint" style="margin:16px 0">Sign in before placing an order so it can be securely saved to your account.</p>
         }
         <div class="stepper-nav">
-          <div [class.active]="step === 1">1. Shipping</div>
+          <div [class.active]="step === 1">1. Details</div>
           <div [class.active]="step === 2">2. Cash on delivery</div>
           <div [class.active]="step === 3">3. Review</div>
         </div>
         <div class="checkout-layout">
           <div class="checkout-form-card">
             @if (step === 1) {
-              <h2 style="font-size:16px;margin-bottom:14px">Shipping details</h2>
+              <h2 style="font-size:16px;margin-bottom:14px">Details</h2>
               <form class="form-grid" (submit)="toPayment($event)">
                 <div>
                   <label class="field-label" for="fn">Full name</label>
@@ -52,7 +52,7 @@ import { EmptyStateComponent } from '../../shared/components/empty-state.compone
                   <label class="field-label" for="ad">Address</label>
                   <input class="field" id="ad" name="address" [(ngModel)]="address" minlength="5" maxlength="200" required />
                 </div>
-                <div class="full">
+                <div class="full checkout-actions">
                   <button class="btn btn-primary" type="submit">Continue to payment</button>
                 </div>
               </form>
@@ -61,7 +61,7 @@ import { EmptyStateComponent } from '../../shared/components/empty-state.compone
               <h2 style="font-size:16px;margin-bottom:14px">Cash on delivery</h2>
               <p class="hint">Pay the courier when your order arrives. Shipping is included.</p>
               <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:18px;">
-                <button class="btn btn-secondary" type="button" (click)="step = 1">Edit shipping</button>
+                <button class="btn btn-secondary" type="button" (click)="step = 1">Edit details</button>
                 <button class="btn btn-primary" type="button" (click)="step = 3">Review order</button>
               </div>
             }
@@ -149,11 +149,14 @@ export class CheckoutPageComponent {
     this.phoneError.set(phoneMessage);
 
     if (nameMessage || phoneMessage) {
+      const message = nameMessage || phoneMessage;
       this.error.set('Fix the highlighted fields before continuing.');
+      this.toast.show(message, 'error');
       return;
     }
     if (this.address.trim().length < 5) {
       this.error.set('Enter a complete delivery address.');
+      this.toast.show('Enter a complete delivery address (at least 5 characters).', 'error');
       return;
     }
 

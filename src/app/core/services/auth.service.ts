@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable, catchError, from, map, of, switchMap, throwError } from 'rxjs';
+import { Observable, catchError, firstValueFrom, from, map, of, switchMap, throwError } from 'rxjs';
 import { Session } from '@supabase/supabase-js';
 import { AuthSession, AuthUser } from '../models/user.model';
 import { ProfileRow } from '../models/supabase.model';
@@ -28,7 +28,12 @@ export class AuthService {
   }
 
   whenReady(): Observable<boolean> {
-    return from(this.readyPromise).pipe(map(() => true));
+    // Never let a failed bootstrap reject guard navigation; resolve as "ready"
+    // either way so signed-out users are redirected instead of hitting an error.
+    return from(this.readyPromise).pipe(
+      map(() => true),
+      catchError(() => of(true))
+    );
   }
 
   login(email: string, password: string): Observable<AuthSession> {
@@ -154,9 +159,14 @@ export class AuthService {
   }
 
   private async bootstrap(): Promise<void> {
-    const { data } = await this.supabase.auth.getSession();
-    this.setSession(data.session);
-    if (data.session) await this.loadProfile().toPromise();
+    try {
+      const { data } = await this.supabase.auth.getSession();
+      this.setSession(data.session);
+      if (data.session) await firstValueFrom(this.loadProfile());
+    } catch {
+      // A transient session/profile read failure must not break the app shell.
+      this.session.set(null);
+    }
   }
 
   private setSession(session: Session | null): void {

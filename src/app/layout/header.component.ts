@@ -105,7 +105,12 @@ import { WishlistService } from '../core/services/wishlist.service';
           <a [routerLink]="link.path" [queryParams]="link.queryParams" routerLinkActive="active" [routerLinkActiveOptions]="link.exact ? { exact: true } : { exact: false }">{{ link.label }}</a>
         }
       </nav>
-      <nav class="mobile-nav" [class.open]="menuOpen" aria-label="Mobile">
+      <div class="mobile-nav-backdrop" [class.open]="menuOpen" (click)="menuOpen = false"></div>
+      <nav class="mobile-nav" [class.open]="menuOpen" aria-label="Mobile" [attr.aria-hidden]="!menuOpen">
+        <div class="mobile-nav-head">
+          <strong>Browse</strong>
+          <button type="button" class="mobile-nav-close" aria-label="Close menu" (click)="menuOpen = false">×</button>
+        </div>
         <a routerLink="/shop" (click)="menuOpen = false">All Categories</a>
         @for (group of categoryGroups; track group.label) {
           <div class="mobile-nav-group">
@@ -114,9 +119,6 @@ import { WishlistService } from '../core/services/wishlist.service';
               <a [routerLink]="item.path" (click)="menuOpen = false">{{ item.label }}</a>
             }
           </div>
-        }
-        @for (link of navLinks; track link.path) {
-          <a [routerLink]="link.path" [queryParams]="link.queryParams" (click)="menuOpen = false">{{ link.label }}</a>
         }
       </nav>
     </header>

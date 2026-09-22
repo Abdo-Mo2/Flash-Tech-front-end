@@ -41,7 +41,6 @@ import { EmptyStateComponent } from '../../shared/components/empty-state.compone
             <div class="summary-row"><span>Shipping</span><span>{{ cart.shipping() | egp }}</span></div>
             <div class="summary-row total"><span>Total</span><span>{{ cart.total() | egp }}</span></div>
             <a class="btn btn-primary" style="width:100%;margin-top:14px" routerLink="/checkout">Proceed to checkout</a>
-            <p class="guest-note">You can check out as a guest — no account required.</p>
           </aside>
         </div>
       }

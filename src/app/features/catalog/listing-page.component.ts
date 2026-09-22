@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, HostListener, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Product, categoryLabel } from '../../core/models/product.model';
@@ -17,29 +17,33 @@ import { EmptyStateComponent } from '../../shared/components/empty-state.compone
         <a routerLink="/">Home</a> › {{ title() }}
       </nav>
       <div class="listing-heading">
-        <div><span class="section-eyebrow">FlashTech catalog</span><h1>{{ title() }}</h1><p>Curated hardware, clear pricing, and delivery across Egypt.</p></div>
+        <div><span class="section-eyebrow">FlashTech catalog</span><h1>{{ title() }}</h1></div>
       </div>
       <div class="listing-layout">
+        <div class="filters-backdrop" [class.open]="filtersOpen" (click)="filtersOpen = false"></div>
         <aside class="filters" [class.open]="filtersOpen">
-          <h3>Filter</h3>
-          <div class="filter-group">
-            <b style="font-size:13px">Brand</b>
-            @for (b of brands(); track b) {
-              <div class="opt" style="margin-top:8px">
-                <input type="checkbox" [id]="'b-'+b" [checked]="selectedBrands.has(b)" (change)="toggleBrand(b)" />
-                <label [for]="'b-'+b">{{ b }}</label>
-              </div>
-            }
+          <div class="filters-head">
+            <h3>Filter</h3>
+            <button type="button" class="filters-close" aria-label="Close filters" (click)="filtersOpen = false">×</button>
           </div>
-          @if (laptopsOnly) {
-            @for (specification of laptopSpecifications(); track specification.label) {
-              <div class="filter-group">
-                <b style="font-size:13px">{{ specification.label }}</b>
-                @for (value of specification.values; track value) {
-                  <div class="opt" style="margin-top:8px"><input type="checkbox" [id]="'spec-'+specification.label+'-'+value" [checked]="hasSpecification(specification.label, value)" (change)="toggleSpecification(specification.label, value)" /><label [for]="'spec-'+specification.label+'-'+value">{{ value }}</label></div>
-                }
-              </div>
-            }
+          @if (brands().length) {
+            <div class="filter-group">
+              <b style="font-size:13px">Brand</b>
+              @for (b of brands(); track b) {
+                <div class="opt" style="margin-top:8px">
+                  <input type="checkbox" [id]="'b-'+b" [checked]="selectedBrands.has(b)" (change)="toggleBrand(b)" />
+                  <label [for]="'b-'+b">{{ b }}</label>
+                </div>
+              }
+            </div>
+          }
+          @for (specification of specificationFilters(); track specification.label) {
+            <div class="filter-group">
+              <b style="font-size:13px">{{ specification.label }}</b>
+              @for (value of specification.values; track value) {
+                <div class="opt" style="margin-top:8px"><input type="checkbox" [id]="'spec-'+specification.label+'-'+value" [checked]="hasSpecification(specification.label, value)" (change)="toggleSpecification(specification.label, value)" /><label [for]="'spec-'+specification.label+'-'+value">{{ value }}</label></div>
+              }
+            </div>
           }
           <div class="filter-group">
             <label class="field-label" for="min-p">Min price (EGP)</label>
@@ -60,14 +64,20 @@ import { EmptyStateComponent } from '../../shared/components/empty-state.compone
             <span class="result-count">{{ total() }} products found</span>
             <div style="display:flex;gap:8px;align-items:center">
               <button class="btn btn-ghost filter-toggle" type="button" (click)="filtersOpen = !filtersOpen">Filters</button>
-              <label class="visually-hidden" for="sort">Sort by</label>
-              <select class="select" id="sort" [(ngModel)]="sort" (change)="apply()">
-                <option value="relevant">Sort: most relevant</option>
-                <option value="price-asc">Price: low to high</option>
-                <option value="price-desc">Price: high to low</option>
-                <option value="rating">Highest rated</option>
-                <option value="newest">Newest</option>
-              </select>
+              <div class="sort-dropdown" [class.open]="sortOpen">
+                <button class="select sort-trigger" type="button" aria-haspopup="listbox" [attr.aria-expanded]="sortOpen" (click)="sortOpen = !sortOpen" (keydown.escape)="sortOpen = false">
+                  {{ sortLabel(sort) }} <span class="sort-caret" aria-hidden="true">⌄</span>
+                </button>
+                @if (sortOpen) {
+                  <ul class="sort-menu" role="listbox">
+                    @for (option of sortOptions; track option.value) {
+                      <li role="option" [attr.aria-selected]="option.value === sort">
+                        <button type="button" [class.active]="option.value === sort" (click)="chooseSort(option.value)">{{ option.label }}</button>
+                      </li>
+                    }
+                  </ul>
+                }
+              </div>
             </div>
           </div>
           @if (error()) {
@@ -109,8 +119,16 @@ export class ListingPageComponent {
   readonly error = signal(false);
   readonly title = signal('Shop');
   readonly selectedBrands = new Set<string>();
-  readonly laptopSpecifications = signal<{ label: string; values: string[] }[]>([]);
+  readonly specificationFilters = signal<{ label: string; values: string[] }[]>([]);
+  readonly sortOptions: { value: ProductSort; label: string }[] = [
+    { value: 'relevant', label: 'Sort: most relevant' },
+    { value: 'price-asc', label: 'Price: low to high' },
+    { value: 'price-desc', label: 'Price: high to low' },
+    { value: 'rating', label: 'Highest rated' },
+    { value: 'newest', label: 'Newest' }
+  ];
   filtersOpen = false;
+  sortOpen = false;
   minPrice: number | null = null;
   maxPrice: number | null = null;
   inStockOnly = false;
@@ -146,9 +164,13 @@ export class ListingPageComponent {
             ? all
             : this.products.filterByStoreCategory(all, this.category);
         this.brands.set([...new Set(source.map(p => p.brand))].sort());
-        const laptopItems = all.filter(product => product.category.toLowerCase().includes('laptop'));
         const labels = ['RAM', 'CPU', 'Processor', 'GPU', 'Storage', 'Screen Size', 'Resolution', 'Refresh Rate'];
-        this.laptopSpecifications.set(labels.map(label => ({ label, values: [...new Set(laptopItems.flatMap(product => product.specifications.filter(spec => spec.label.toLowerCase() === label.toLowerCase()).map(spec => spec.value)))].sort() })).filter(specification => specification.values.length));
+        this.specificationFilters.set(labels.map(label => {
+          const values = [...new Set(source
+            .flatMap(product => product.specifications.filter(spec => spec.label.toLowerCase() === label.toLowerCase()).map(spec => String(spec.value ?? '').trim()))
+            .filter(Boolean))].sort();
+          return { label, values };
+        }).filter(specification => specification.values.length));
         this.load();
       },
       error: () => this.load()
@@ -204,6 +226,14 @@ export class ListingPageComponent {
   hasSpecification(label: string, value: string): boolean { return this.selectedSpecifications.get(label)?.has(value) ?? false; }
   toggleSpecification(label: string, value: string): void { const values = this.selectedSpecifications.get(label) ?? new Set<string>(); values.has(value) ? values.delete(value) : values.add(value); this.selectedSpecifications.set(label, values); this.page = 1; this.load(); }
 
+  sortLabel(value: ProductSort): string { return this.sortOptions.find(o => o.value === value)?.label ?? this.sortOptions[0].label; }
+  chooseSort(value: ProductSort): void { this.sortOpen = false; if (value === this.sort) return; this.sort = value; this.apply(); }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: Event): void {
+    if (this.sortOpen && !(event.target as HTMLElement).closest('.sort-dropdown')) this.sortOpen = false;
+  }
+
   apply(): void {
     this.page = 1;
     this.load();
@@ -216,6 +246,7 @@ export class ListingPageComponent {
     this.maxPrice = null;
     this.inStockOnly = false;
     this.sort = 'relevant';
+    this.sortOpen = false;
     this.page = 1;
     this.load();
   }

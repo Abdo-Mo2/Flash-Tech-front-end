@@ -41,7 +41,6 @@ import { ToastService } from '../../core/services/toast.service';
           <div class="divider">or</div>
           <button class="btn btn-secondary" style="width:100%;margin-bottom:10px" type="button" (click)="google()">Continue with Google</button>
           <a class="btn btn-ghost" style="width:100%" routerLink="/checkout">Continue as guest</a>
-          <p class="auth-info">Your account is secured by Supabase Auth.</p>
         }
 
         @if (mode() === 'register') {
@@ -52,7 +51,7 @@ import { ToastService } from '../../core/services/toast.service';
             <input class="field" id="re-email" type="email" name="email" [(ngModel)]="email" autocomplete="email" required />
             <label class="field-label" for="re-pass">Password</label>
             <input class="field" id="re-pass" type="password" name="rpass" [(ngModel)]="password" minlength="8" autocomplete="new-password" required />
-            <p class="hint" style="margin:-8px 0 14px">Use at least 8 characters. Your account will be secured by Supabase Auth.</p>
+            <p class="hint" style="margin:-8px 0 14px">Use at least 8 characters.</p>
             <button class="btn btn-primary" style="width:100%" type="submit" [disabled]="busy()">Create account</button>
           </form>
           <div class="divider">or</div>

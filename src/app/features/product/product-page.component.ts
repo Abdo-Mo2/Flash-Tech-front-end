@@ -37,12 +37,14 @@ import { EmptyStateComponent } from '../../shared/components/empty-state.compone
         </nav>
         <section class="pd-layout pd-primary-section">
           <div class="pd-gallery">
-            <div class="pd-main-img"><img class="h-full w-full object-contain object-center" [src]="activeImage()" [alt]="p.title" /></div>
-            <div class="pd-thumbs">
-              @for (img of p.images; track img) {
-                <button type="button" [class.active]="img === activeImage()" (click)="activeImage.set(img)"><img [src]="img" [alt]="'Thumbnail of ' + p.title" /></button>
-              }
-            </div>
+            <div class="pd-main-img"><img [src]="activeImage()" [alt]="p.title" /></div>
+            @if (p.images.length > 1) {
+              <div class="pd-thumbs">
+                @for (img of p.images; track img) {
+                  <button type="button" [class.active]="img === activeImage()" (click)="activeImage.set(img)"><img [src]="img" [alt]="'Thumbnail of ' + p.title" /></button>
+                }
+              </div>
+            }
           </div>
           <div class="pd-description">
             <span class="brand">{{ p.brand }}</span>
@@ -59,7 +61,7 @@ import { EmptyStateComponent } from '../../shared/components/empty-state.compone
           <aside class="pd-buybox">
             <span class="badge" [class.stock]="inStock(p)" [class.out]="!inStock(p)">{{ inStock(p) ? 'In stock - ships in 1-2 days' : 'Out of stock' }}</span>
             <div class="pd-price">{{ p | saleEgp | egp }} @if (p.discountPercentage >= 1) { <span class="old">{{ p | listEgp | egp }}</span><span class="badge sale">-{{ p.discountPercentage | number:'1.0-0' }}%</span> }</div>
-            <div class="qty-row"><div class="stepper"><button type="button" aria-label="Decrease quantity" (click)="qty = Math.max(1, qty - 1)">-</button><span>{{ qty }}</span><button type="button" aria-label="Increase quantity" (click)="qty = Math.min(p.stock || 1, qty + 1)">+</button></div><span class="pd-stock-note">{{ p.stock }} left at this price</span></div>
+            <div class="qty-row"><div class="stepper"><button type="button" aria-label="Decrease quantity" (click)="qty = Math.max(1, qty - 1)">-</button><span>{{ qty }}</span><button type="button" aria-label="Increase quantity" (click)="qty = Math.min(p.stock || 1, qty + 1)">+</button></div></div>
             <div class="cta-row">
               @if (inStock(p)) { <button class="btn btn-primary" type="button" (click)="add(p)">Add to cart</button> } @else { <button class="btn btn-secondary" type="button" (click)="toast.show('We will notify you on this device when it returns.', 'info')">Notify me</button> }
               <button class="icon-btn" type="button" [attr.aria-label]="wishlist.has(p.id) ? 'Remove from wishlist' : 'Add to wishlist'" (click)="wishlist.toggle(p)">♥</button>
