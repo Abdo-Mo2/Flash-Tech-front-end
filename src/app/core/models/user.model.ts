@@ -27,10 +27,24 @@ export interface Address {
   governorate: string;
 }
 
-export interface LocalOrder {
+export interface OrderStatus {
   id: string;
   placedAt: string;
   status: 'Processing' | 'Shipped' | 'Out for Delivery' | 'Delivered' | 'Cancelled';
   items: { productId?: string; title: string; qty: number; lineTotal: number }[];
   total: number;
+}
+
+export interface OrderCustomer {
+  fullName: string;
+  phone: string;
+  address: string;
+}
+
+export interface LocalOrder extends OrderStatus {
+  customer?: OrderCustomer;
+  userId?: string;
+  customerName?: string;
+  customerPhone?: string;
+  deliveryAddress?: string;
 }

@@ -14,12 +14,31 @@ The existing authentication/profile setup must include `public.is_admin()`. Run 
 4. `supabase/hero-and-history-migration.sql`
 5. `supabase/admin-policies.sql`
 6. `supabase/admin-workflows-migration.sql`
+7. `supabase/checkout-rls-fix-migration.sql`
+8. `supabase/profiles-columns-migration.sql`
+9. `supabase/order-lifecycle-migration.sql`
+10. `supabase/order-archive-migration.sql`
+
+`profiles-columns-migration.sql` adds the profile columns the client reads and
+writes (`username`, `first_name`, `last_name`, `phone`, `gender`, `image`,
+`address`, `updated_at`). It is idempotent and safe on a database where some of
+them already exist. Without it, admin order screens fail with
+`column profiles.first_name does not exist`.
+
+The last migration is required by the current frontend. It replaces
+`create_order_with_items` with a version that takes the customer name, phone and
+address, enforces the 3-unit-per-product limit and shipping fee server-side,
+adds `cancel_order`, and hardens stock restoration so a cancellation returns the
+exact quantities exactly once. Existing orders are left untouched and are never
+automatically restocked, because their inventory provenance is unknown.
 
 The final admin workflow migration creates the public `hero-images` Storage bucket and admin-only write policies, adds the protected `set_user_role` function used by the Users screen, and adds the profile creation timestamp used by the admin user list. Never place a Supabase `service_role` key in Angular code; browser uploads and role changes use the publishable key with Storage RLS and database checks.
 
 Hero slide images can be selected as local files in the admin form and are uploaded to the `hero-images` Storage bucket when the slide is saved. Product images remain URL-based.
 
-Enable Email and Google providers under Supabase Authentication. Add the local and deployed application URLs to the provider redirect/origin allowlists. Google OAuth client credentials belong in Supabase project settings; the browser only uses Supabase Auth.
+Enable Email and Google providers under Supabase Authentication. Add the local and deployed application URLs to the provider redirect/origin allowlists, including `http://localhost:4200/confirm-email` and the equivalent deployed URL. Google OAuth client credentials belong in Supabase project settings; the browser only uses Supabase Auth and never sees a client secret.
+
+Google sign-in goes through `supabase.auth.signInWithOAuth({ provider: 'google' })`, so the Google Client ID is configured in the Supabase dashboard (Authentication → Providers → Google), not in this repository.
 
 ## Performance testing (Lighthouse)
 Run Lighthouse against the **production build**, never `ng serve`. The dev server

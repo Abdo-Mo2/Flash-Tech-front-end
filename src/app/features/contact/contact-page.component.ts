@@ -26,12 +26,12 @@ import { UserService } from '../../core/services/user.service';
             <option>Stock question</option>
             <option>Warranty</option>
           </select>
-          <label class="field-label" for="cm" style="margin-top:16px">How can we help?</label>
+          <label class="field-label" for="cm">How can we help?</label>
           <textarea class="field" id="cm" name="msg" [(ngModel)]="message" required></textarea>
           @if (formError) {
             <p class="err-msg">{{ formError }}</p>
           }
-          <button class="btn btn-primary" type="submit" [disabled]="busy" style="margin-top:12px">{{ busy ? 'Sending…' : 'Send message' }}</button>
+          <button class="btn btn-primary" type="submit" [disabled]="busy">{{ busy ? 'Sending…' : 'Send message' }}</button>
         </form>
         <div>
           <h2 id="shipping" style="font-size:16px;margin-bottom:12px">Shipping</h2>

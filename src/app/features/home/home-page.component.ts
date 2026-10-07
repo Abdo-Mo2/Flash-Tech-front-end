@@ -172,7 +172,6 @@ export class HomePageComponent implements OnDestroy {
   private readonly heroes = inject(HeroService);
   private readonly categoryService = inject(CategoryService);
 
-  readonly featured = signal<Product[]>([]);
   readonly trending = signal<Product[]>([]);
   readonly slides = signal<HeroSlide[]>([]);
   readonly categories = signal<StoreApiCategory[]>([]);
@@ -232,27 +231,21 @@ export class HomePageComponent implements OnDestroy {
   load(): void {
     this.loadingFeatured.set(true);
     this.featuredError.set(false);
-    this.products.getFeatured(8).subscribe({
+    this.products.getTrending(8).subscribe({
       next: items => {
-        this.featured.set(items);
+        const top = items.slice(0, 8);
+        this.trending.set(top);
+        this.newReleases.set(top);
+        this.deals.set(items.filter(item => item.discountPercentage > 0).slice(0, 8));
+        this.brands.set([...new Set(items.map(item => item.brand).filter(Boolean))].sort((a, b) => a.localeCompare(b)));
         this.loadingFeatured.set(false);
+        this.loadingTrend.set(false);
       },
       error: () => {
         this.loadingFeatured.set(false);
+        this.loadingTrend.set(false);
         this.featuredError.set(true);
       }
-    });
-
-    this.loadingTrend.set(true);
-    this.products.getTrending(8).subscribe({
-      next: items => {
-        this.trending.set(items.slice(0, 8));
-        this.newReleases.set(items.slice(0, 8));
-        this.deals.set(items.filter(item => item.discountPercentage > 0).slice(0, 8));
-        this.brands.set([...new Set(items.map(item => item.brand).filter(Boolean))].sort((a, b) => a.localeCompare(b)));
-        this.loadingTrend.set(false);
-      },
-      error: () => this.loadingTrend.set(false)
     });
   }
 

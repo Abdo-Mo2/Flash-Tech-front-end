@@ -39,7 +39,7 @@ import { ToastService } from '../../core/services/toast.service';
             <button class="btn btn-primary" style="width:100%" type="submit" [disabled]="busy()">Log in</button>
           </form>
           <div class="divider">or</div>
-          <button class="btn btn-secondary" style="width:100%;margin-bottom:10px" type="button" (click)="google()">Continue with Google</button>
+          <button class="btn btn-secondary" style="width:100%" type="button" (click)="google()">Continue with Google</button>
           <a class="btn btn-ghost" style="width:100%" routerLink="/checkout">Continue as guest</a>
         }
 
@@ -51,7 +51,7 @@ import { ToastService } from '../../core/services/toast.service';
             <input class="field" id="re-email" type="email" name="email" [(ngModel)]="email" autocomplete="email" required />
             <label class="field-label" for="re-pass">Password</label>
             <input class="field" id="re-pass" type="password" name="rpass" [(ngModel)]="password" minlength="8" autocomplete="new-password" required />
-            <p class="hint" style="margin:-8px 0 14px">Use at least 8 characters.</p>
+            <p class="hint" style="margin:0 0 14px">Use at least 8 characters.</p>
             <button class="btn btn-primary" style="width:100%" type="submit" [disabled]="busy()">Create account</button>
           </form>
           <div class="divider">or</div>
@@ -63,7 +63,7 @@ import { ToastService } from '../../core/services/toast.service';
             <label class="field-label" for="fp-email">Email</label>
             <input class="field" id="fp-email" type="email" name="fp" [(ngModel)]="email" required />
             <button class="btn btn-primary" style="width:100%" type="submit">Send reset link</button>
-            <button class="btn btn-ghost" style="width:100%;margin-top:8px" type="button" (click)="mode.set('login')">Back to log in</button>
+            <button class="btn btn-ghost" style="width:100%" type="button" (click)="mode.set('login')">Back to log in</button>
           </form>
         }
       </div>
@@ -84,6 +84,17 @@ export class AuthPageComponent {
   password = '';
   fullName = '';
   email = '';
+
+  constructor() {
+    // Supabase reports OAuth failures (for example a cancelled consent screen or
+    // an unverified email) back on the redirect target; surface them instead of
+    // silently landing on the login form.
+    const params = this.route.snapshot.queryParamMap;
+    const description = params.get('error_description') || params.get('error');
+    if (description) {
+      this.error.set(description.replace(/\+/g, ' '));
+    }
+  }
 
   login(event: Event): void {
     event.preventDefault();
@@ -135,18 +146,24 @@ export class AuthPageComponent {
   google(): void {
     this.busy.set(true);
     this.error.set('');
-    this.googleAuth.signIn().subscribe(result => {
+    const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/account';
+    this.googleAuth.signIn(returnUrl).subscribe(result => {
       if (result.status === 'error') {
         this.busy.set(false);
         this.error.set(result.message);
         return;
       }
+      // The browser is redirecting to Google now; the session is restored from
+      // the /auth callback URL on the way back, so nothing else runs here.
     });
   }
 
   private afterAuth(): void {
     this.busy.set(false);
-    const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/account';
+    const params = this.route.snapshot.queryParamMap;
+    const returnUrl = params.get('returnUrl')
+      || (params.get('next')?.startsWith('/') ? params.get('next') : '')
+      || '/account';
     void this.router.navigateByUrl(returnUrl);
   }
 }

@@ -49,14 +49,32 @@ export function supabaseErrorMessage(error: unknown, fallback: string): string {
   if (/bucket.*not found|not found.*bucket/i.test(message)) {
     return 'Hero image storage is not configured. Run supabase/admin-workflows-migration.sql in your Supabase SQL editor, then try again.';
   }
+  if (/create_order_with_items|function.*does not exist/i.test(message)) {
+    return 'Checkout setup is incomplete. Please ask the store administrator to apply the checkout database migration.';
+  }
+  if (/cancel_order|function.*does not exist/i.test(message)) {
+    return 'Order cancellation is not available yet. Please ask the store administrator to apply the latest database migration.';
+  }
+  if (/maximum quantity|maximum 3|maximum quantity per product/i.test(message)) {
+    return 'You can order at most 3 units of the same product.';
+  }
+  if (/name must be|address must be|invalid phone/i.test(message)) {
+    return 'Check the name, phone, and address details before placing the order.';
+  }
+  if (/out for delivery|no longer be cancelled|invalid order status transition/i.test(message)) {
+    return 'This order can no longer be cancelled online. Contact the store for help.';
+  }
+  if (/already cancelled/i.test(message)) {
+    return 'This order was already cancelled.';
+  }
+  if (/order not found/i.test(message)) {
+    return 'That order could not be found on your account.';
+  }
   if (/insufficient stock/i.test(message)) {
     return 'Only the remaining available quantity can be ordered. Please update your cart and try again.';
   }
   if (/product is unavailable|product.*not found/i.test(message)) {
     return 'One of the products in your cart is no longer available. Please remove it and try again.';
-  }
-  if (/create_order_with_items|function.*does not exist/i.test(message)) {
-    return 'Checkout setup is incomplete. Please ask the store administrator to apply the checkout database migration.';
   }
   return fallback;
 }

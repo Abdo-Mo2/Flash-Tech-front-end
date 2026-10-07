@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, forkJoin, map, shareReplay } from 'rxjs';
+import { Observable, map, shareReplay } from 'rxjs';
 import { Product, ProductPage } from '../models/product.model';
 import { ProductRow } from '../models/supabase.model';
 import { isInStock, mapProduct, salePrice } from '../mappers/product.mapper';
@@ -111,13 +111,6 @@ export class ProductService {
           .slice(0, limit)
       )
     );
-  }
-
-  getFeatured(limit = 8): Observable<Product[]> {
-    return forkJoin([
-      this.getByApiCategory('gaming-laptops', 1),
-      this.getByApiCategory('business-laptops', 1)
-    ]).pipe(map(pages => pages.flatMap(page => page.items).slice(0, limit)));
   }
 
   getTrending(limit = 8): Observable<Product[]> {

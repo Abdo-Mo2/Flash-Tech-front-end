@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, forkJoin, map, switchMap } from 'rxjs';
+import { Observable, catchError, forkJoin, map, of, switchMap } from 'rxjs';
 import { Product } from '../models/product.model';
 import { ProductRow } from '../models/supabase.model';
-import { AdminCategory, AdminOrder, AdminStats, AdminUser, MonthlySales, ProductInput } from '../models/admin.model';
+import { AdminCategory, AdminOrder, AdminOrderProfileRow, AdminStats, AdminUser, MonthlySales, ProductInput } from '../models/admin.model';
 import { mapProduct } from '../mappers/product.mapper';
 import { SupabaseClientService } from '../supabase/supabase-client.service';
 import { fromSupabase } from '../supabase/supabase.util';
@@ -12,6 +12,9 @@ export class AdminService {
   private readonly supabase = inject(SupabaseClientService).client;
 
   getStats(): Observable<AdminStats> {
+    // Stats read the *active* order set (orders table no longer returns archived
+    // rows to admins). Monthly revenue comes from the history tables, so it is
+    // unaffected by delivered/cancelled orders leaving the active list.
     return forkJoin({
       products: fromSupabase(this.supabase.from('products').select('id,stock')),
       orders: fromSupabase(this.supabase.from('orders').select('id,status,total')),
@@ -93,17 +96,66 @@ export class AdminService {
   }
 
   listOrders(): Observable<AdminOrder[]> {
-    return fromSupabase(this.supabase.from('orders').select('*, order_items(*)')
-      .in('status', ['Processing', 'Shipped', 'Out for Delivery']).order('placed_at', { ascending: false }))
-      .pipe(map(rows => (rows as AdminOrder[] | null) ?? []));
+    // The RLS policy already hides archived (Delivered/Cancelled) orders from
+    // admins; the explicit is() filter keeps the intent obvious and guards
+    // against an out-of-date policy without hiding anything client-side.
+    // The profile join is best-effort: orders must still render even when the
+    // profiles table is locked down or missing columns.
+    return forkJoin({
+      orders: fromSupabase(this.supabase.from('orders')
+        .select('id,user_id,status,total,placed_at,customer_name,customer_phone,delivery_address,order_items(*)')
+        .is('archived_at', null)
+        .order('placed_at', { ascending: false })),
+      profiles: fromSupabase(this.supabase.from('profiles')
+        .select('id,email,first_name,last_name,phone')).pipe(catchError(() => of([])))
+    }).pipe(map(({ orders, profiles }) => this.attachProfiles(
+      (orders as unknown as AdminOrder[] | null) ?? [],
+      (profiles as unknown as AdminOrderProfileRow[] | null) ?? []
+    )));
   }
-  getOrder(id: string): Observable<AdminOrder> { return fromSupabase(this.supabase.from('orders').select('*, order_items(*)').eq('id', id).single()).pipe(map(row => row as AdminOrder)); }
-  updateOrderStatus(id: string, status: string): Observable<void> { return fromSupabase(this.supabase.from('orders').update({ status }).eq('id', id)).pipe(map(() => undefined)); }
+
+  getOrder(id: string): Observable<AdminOrder> {
+    return fromSupabase(this.supabase.from('orders')
+      .select('id,user_id,status,total,placed_at,customer_name,customer_phone,delivery_address,order_items(*)')
+      .eq('id', id).single()).pipe(
+      switchMap(row => {
+        const order = row as unknown as AdminOrder;
+        if (!order.user_id) return of(order);
+        return fromSupabase(this.supabase.from('profiles')
+          .select('id,email,first_name,last_name,phone').eq('id', order.user_id).maybeSingle()
+        ).pipe(
+          map(profile => ({ ...order, profiles: (profile as unknown as AdminOrderProfileRow | null) ?? null })),
+          catchError(() => of({ ...order, profiles: null }))
+        );
+      })
+    );
+  }
+  /**
+   * Finalises an order status through the atomic `finalize_order` RPC. The RPC
+   * runs in one transaction, so the transition guard, the archive marker, the
+   * monthly-sales sync (on Delivered) and the stock restoration (on Cancelled)
+   * all apply together. Delivered/Cancelled orders are then archived
+   * server-side and disappear from the active list on the next read.
+   */
+  finalizeOrder(id: string, status: string): Observable<void> {
+    return fromSupabase(
+      this.supabase.rpc('finalize_order', { p_order_id: id, p_status: status })
+    ).pipe(map(() => undefined));
+  }
+
   listUsers(): Observable<AdminUser[]> { return fromSupabase(this.supabase.from('profiles').select('id,email,role,created_at').order('created_at', { ascending: false })).pipe(map(rows => (rows as AdminUser[] | null) ?? [])); }
   setUserRole(id: string, role: 'user' | 'admin'): Observable<void> { return fromSupabase(this.supabase.rpc('set_user_role', { target_user_id: id, target_role: role })).pipe(map(() => undefined)); }
   listCategories(): Observable<AdminCategory[]> { return fromSupabase(this.supabase.from('categories').select('*').order('sort_order')).pipe(map(rows => (rows as AdminCategory[] | null) ?? [])); }
   saveCategory(category: AdminCategory, originalSlug?: string): Observable<AdminCategory> { const payload = { slug: category.slug, name: category.name, blurb: category.blurb, icon: category.icon, sort_order: category.sort_order }; const request = originalSlug ? this.supabase.from('categories').update(payload).eq('slug', originalSlug).select('*').single() : this.supabase.from('categories').insert(payload).select('*').single(); return fromSupabase(request).pipe(map(row => row as AdminCategory)); }
   deleteCategory(slug: string): Observable<void> { return fromSupabase(this.supabase.from('categories').delete().eq('slug', slug)).pipe(map(() => undefined)); }
+
+  private attachProfiles(orders: AdminOrder[], profiles: AdminOrderProfileRow[]): AdminOrder[] {
+    const byId = new Map(profiles.map(profile => [profile.id, profile]));
+    return orders.map(order => ({
+      ...order,
+      profiles: order.user_id ? byId.get(order.user_id) ?? null : null
+    }));
+  }
 
   private slugify(value: string): string { return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
 }

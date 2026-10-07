@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Observable, catchError, map, of, switchMap, throwError } from 'rxjs';
-import { Address, AuthUser, LocalOrder } from '../models/user.model';
-import { AddressRow, OrderItemRow, OrderRow, ProfileRow } from '../models/supabase.model';
+import { Observable, catchError, map, switchMap, throwError } from 'rxjs';
+import { Address, LocalOrder, OrderCustomer } from '../models/user.model';
+import { AddressRow, OrderItemRow, OrderRow } from '../models/supabase.model';
 import { AuthService } from './auth.service';
 import { SupabaseClientService } from '../supabase/supabase-client.service';
 import { fromSupabase, supabaseErrorMessage } from '../supabase/supabase.util';
@@ -27,15 +27,6 @@ export class UserService {
     }
     this.loadRemoteAddresses(userId).subscribe({ next: items => this.addresses.set(items), error: () => this.addresses.set([]) });
     this.loadRemoteOrders(userId).subscribe({ next: items => this.orders.set(items), error: () => this.orders.set([]) });
-  }
-
-  getRemoteUser(id: string): Observable<AuthUser | null> {
-    return fromSupabase(
-      this.supabase.from('profiles').select('*').eq('id', id).maybeSingle()
-    ).pipe(
-      map(row => row ? this.mapProfile(row as ProfileRow) : null),
-      catchError(() => of(null))
-    );
   }
 
   addAddress(address: Omit<Address, 'id'>): Observable<Address> {
@@ -76,13 +67,17 @@ export class UserService {
   addOrder(order: Omit<LocalOrder, 'id' | 'placedAt' | 'status'>, shippingFee: number): Observable<LocalOrder> {
     const userId = this.auth.user()?.id;
     if (!userId) return throwError(() => new Error('Sign in before placing an order.'));
+    const customer: OrderCustomer = order.customer ?? { fullName: '', phone: '', address: '' };
     return fromSupabase(
       this.supabase.rpc('create_order_with_items', {
         p_shipping_fee: shippingFee,
         p_items: order.items.map(item => ({
           product_id: item.productId,
           qty: item.qty
-        }))
+        })),
+        p_customer_name: customer.fullName,
+        p_phone: customer.phone,
+        p_address: customer.address
       })
     ).pipe(
       switchMap(orderId => {
@@ -95,6 +90,17 @@ export class UserService {
         return created;
       }),
       catchError(error => throwError(() => new Error(supabaseErrorMessage(error, 'Could not place your order.'))))
+    );
+  }
+
+  cancelOrder(orderId: string): Observable<void> {
+    if (!this.auth.user()) return throwError(() => new Error('Sign in before cancelling an order.'));
+    return fromSupabase(this.supabase.rpc('cancel_order', { p_order_id: orderId })).pipe(
+      map(() => {
+        this.orders.update(items => items.map(item =>
+          item.id === orderId ? { ...item, status: 'Cancelled' as const } : item));
+      }),
+      catchError(error => throwError(() => new Error(supabaseErrorMessage(error, 'Could not cancel this order.'))))
     );
   }
 
@@ -137,6 +143,10 @@ export class UserService {
       placedAt: row.placed_at,
       status: this.mapStatus(row.status),
       total: Number(row.total),
+      userId: row.user_id ?? undefined,
+      customerName: row.customer_name ?? undefined,
+      customerPhone: row.customer_phone ?? undefined,
+      deliveryAddress: row.delivery_address ?? undefined,
       items: (row.order_items ?? []).map((item: OrderItemRow) => ({
         productId: item.product_id ?? undefined,
         title: item.title,
@@ -149,20 +159,5 @@ export class UserService {
   private mapStatus(status: string): LocalOrder['status'] {
     if (status === 'Shipped' || status === 'Out for Delivery' || status === 'Delivered' || status === 'Cancelled') return status;
     return 'Processing';
-  }
-
-  private mapProfile(row: ProfileRow): AuthUser {
-    return {
-      id: row.id,
-      username: row.username ?? '',
-      email: row.email ?? '',
-      firstName: row.first_name ?? '',
-      lastName: row.last_name ?? '',
-      gender: row.gender ?? '',
-      image: row.image ?? '',
-      phone: row.phone ?? undefined,
-      address: row.address ?? undefined,
-      role: row.role
-    };
   }
 }

@@ -7,14 +7,32 @@ export type GoogleAuthResult =
   | { status: 'redirected' }
   | { status: 'error'; message: string };
 
+/**
+ * Supabase returns OAuth errors (including a cancelled consent screen) as query
+ * or hash parameters on the redirect target. Only allow same-origin paths so a
+ * crafted link cannot bounce a signed-in user to another site.
+ */
+function safeReturnPath(value: string | null): string {
+  if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) {
+    return '';
+  }
+  return value;
+}
+
 @Injectable({ providedIn: 'root' })
 export class GoogleAuthService {
   private readonly supabase = inject(SupabaseClientService).client;
 
-  signIn(): Observable<GoogleAuthResult> {
+  signIn(returnPath?: string): Observable<GoogleAuthResult> {
+    const next = safeReturnPath(returnPath ?? null) || '/';
+    const redirectTo = new URL('/auth', window.location.origin);
+    redirectTo.searchParams.set('next', next);
     return from(this.supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin + '/auth' }
+      options: {
+        redirectTo: redirectTo.toString(),
+        queryParams: { prompt: 'select_account' }
+      }
     })).pipe(
       map(({ data, error }) => {
         if (error || !data.url) {

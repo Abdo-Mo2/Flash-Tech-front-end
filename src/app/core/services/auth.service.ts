@@ -36,6 +36,41 @@ export class AuthService {
     );
   }
 
+  /**
+   * Waits briefly for Supabase to consume a confirmation/OAuth callback in the
+   * current URL. Returns true only when an authenticated session now exists.
+   */
+  waitForSessionFromUrl(timeoutMs = 5000): Promise<boolean> {
+    return new Promise(resolve => {
+      let settled = false;
+      let timer = 0;
+      let subscription: { unsubscribe: () => void } = { unsubscribe: () => undefined };
+      const finish = (value: boolean) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timer);
+        subscription.unsubscribe();
+        resolve(value);
+      };
+      timer = window.setTimeout(() => finish(this.isLoggedIn()), timeoutMs);
+      subscription = from(this.readyPromise).subscribe({
+        next: () => {
+          if (this.isLoggedIn()) finish(true);
+        },
+        error: () => finish(false)
+      });
+      if (this.isLoggedIn()) finish(true);
+    });
+  }
+
+  /** Reads verification from Supabase's own user record, never from URL state. */
+  isEmailConfirmed(): Observable<boolean> {
+    return from(this.supabase.auth.getUser()).pipe(
+      map(({ data, error }) => !error && Boolean(data.user?.email_confirmed_at)),
+      catchError(() => of(false))
+    );
+  }
+
   login(email: string, password: string): Observable<AuthSession> {
     const trimmedEmail = email.trim();
     if (!EMAIL_PATTERN.test(trimmedEmail) || !password) {
@@ -67,7 +102,7 @@ export class AuthService {
           first_name: payload.firstName.trim(),
           username: trimmedEmail.split('@')[0]
         },
-        emailRedirectTo: window.location.origin + '/auth'
+        emailRedirectTo: window.location.origin + '/confirm-email'
       }
     })).pipe(
       switchMap(({ data, error }) => {
@@ -89,8 +124,7 @@ export class AuthService {
     }
     return from(this.supabase.auth.resetPasswordForEmail(trimmedEmail, {
       redirectTo: window.location.origin + '/auth'
-    })).pipe(
-      map(({ error }) => {
+    })).pipe(      map(({ error }) => {
         if (error) throw new Error(supabaseErrorMessage(error, 'Could not send the reset email.'));
       }),
       catchError(error => throwError(() => new Error(this.authErrorMessage(error, 'Could not send the reset email.'))))

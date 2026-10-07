@@ -3,7 +3,7 @@ import { DecimalPipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Product, categoryLabel } from '../../core/models/product.model';
 import { isInStock } from '../../core/mappers/product.mapper';
-import { CartService } from '../../core/services/cart.service';
+import { CartService, MAX_ORDER_QUANTITY } from '../../core/services/cart.service';
 import { ProductService } from '../../core/services/product.service';
 import { ToastService } from '../../core/services/toast.service';
 import { WishlistService } from '../../core/services/wishlist.service';
@@ -61,7 +61,7 @@ import { EmptyStateComponent } from '../../shared/components/empty-state.compone
           <aside class="pd-buybox">
             <span class="badge" [class.stock]="inStock(p)" [class.out]="!inStock(p)">{{ inStock(p) ? 'In stock - ships in 1-2 days' : 'Out of stock' }}</span>
             <div class="pd-price">{{ p | saleEgp | egp }} @if (p.discountPercentage >= 1) { <span class="old">{{ p | listEgp | egp }}</span><span class="badge sale">-{{ p.discountPercentage | number:'1.0-0' }}%</span> }</div>
-            <div class="qty-row"><div class="stepper"><button type="button" aria-label="Decrease quantity" (click)="qty = Math.max(1, qty - 1)">-</button><span>{{ qty }}</span><button type="button" aria-label="Increase quantity" (click)="qty = Math.min(p.stock || 1, qty + 1)">+</button></div></div>
+            <div class="qty-row"><div class="stepper"><button type="button" aria-label="Decrease quantity" (click)="qty = Math.max(1, qty - 1)">-</button><span>{{ qty }}</span><button type="button" aria-label="Increase quantity" (click)="qty = Math.min(p.stock || 1, MAX_ORDER_QUANTITY, qty + 1)">+</button></div></div>
             <div class="cta-row">
               @if (inStock(p)) { <button class="btn btn-primary" type="button" (click)="add(p)">Add to cart</button> } @else { <button class="btn btn-secondary" type="button" (click)="toast.show('We will notify you on this device when it returns.', 'info')">Notify me</button> }
               <button class="icon-btn" type="button" [attr.aria-label]="wishlist.has(p.id) ? 'Remove from wishlist' : 'Add to wishlist'" (click)="wishlist.toggle(p)">♥</button>
@@ -101,6 +101,7 @@ export class ProductPageComponent {
   readonly error = signal(false);
   readonly activeImage = signal('');
   readonly Math = Math;
+  readonly MAX_ORDER_QUANTITY = MAX_ORDER_QUANTITY;
   qty = 1;
 
   constructor() {

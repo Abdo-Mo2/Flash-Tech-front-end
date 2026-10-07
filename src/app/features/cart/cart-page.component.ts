@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { CartService } from '../../core/services/cart.service';
+import { CartService, MAX_ORDER_QUANTITY } from '../../core/services/cart.service';
 import { EgpPipe } from '../../shared/pipes/egp.pipe';
 import { EmptyStateComponent } from '../../shared/components/empty-state.component';
 
@@ -29,7 +29,7 @@ import { EmptyStateComponent } from '../../shared/components/empty-state.compone
                 <div class="stepper">
                   <button type="button" aria-label="Decrease" (click)="cart.setQuantity(item.productId, item.quantity - 1)">−</button>
                   <span>{{ item.quantity }}</span>
-                  <button type="button" aria-label="Increase" (click)="cart.setQuantity(item.productId, item.quantity + 1)">+</button>
+                  <button type="button" aria-label="Increase" [disabled]="item.quantity >= MAX_ORDER_QUANTITY" (click)="cart.setQuantity(item.productId, item.quantity + 1)">+</button>
                 </div>
                 <div style="font-family:'Space Grotesk',sans-serif;font-weight:600">{{ item.unitPrice * item.quantity | egp }}</div>
               </div>
@@ -49,4 +49,5 @@ import { EmptyStateComponent } from '../../shared/components/empty-state.compone
 })
 export class CartPageComponent {
   readonly cart = inject(CartService);
+  readonly MAX_ORDER_QUANTITY = MAX_ORDER_QUANTITY;
 }

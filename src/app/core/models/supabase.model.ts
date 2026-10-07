@@ -54,6 +54,9 @@ export interface OrderRow {
   total: number;
   placed_at: string;
   order_items?: OrderItemRow[] | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  delivery_address?: string | null;
 }
 
 export interface OrderItemRow {

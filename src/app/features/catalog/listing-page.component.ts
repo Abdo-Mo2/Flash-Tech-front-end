@@ -48,7 +48,7 @@ import { EmptyStateComponent } from '../../shared/components/empty-state.compone
           <div class="filter-group">
             <label class="field-label" for="min-p">Min price (EGP)</label>
             <input class="field" id="min-p" type="number" [(ngModel)]="minPrice" (change)="apply()" />
-            <label class="field-label" for="max-p" style="margin-top:10px">Max price (EGP)</label>
+            <label class="field-label" for="max-p">Max price (EGP)</label>
             <input class="field" id="max-p" type="number" [(ngModel)]="maxPrice" (change)="apply()" />
           </div>
           <div class="filter-group">

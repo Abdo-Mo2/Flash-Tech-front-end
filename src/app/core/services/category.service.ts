@@ -1,6 +1,5 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { STORE_CATEGORIES, StoreCategory } from '../models/product.model';
 import { CategoryRow } from '../models/supabase.model';
 import { SupabaseClientService } from '../supabase/supabase-client.service';
 import { fromSupabase } from '../supabase/supabase.util';
@@ -13,10 +12,6 @@ export interface StoreApiCategory {
 @Injectable({ providedIn: 'root' })
 export class CategoryService {
   private readonly supabase = inject(SupabaseClientService).client;
-
-  getStoreCategories(): StoreCategory[] {
-    return STORE_CATEGORIES;
-  }
 
   getApiCategories(): Observable<StoreApiCategory[]> {
     return fromSupabase(

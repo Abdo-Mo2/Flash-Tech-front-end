@@ -60,6 +60,11 @@ export const routes: Routes = [
           import('./features/auth/auth-page.component').then(m => m.AuthPageComponent)
       },
       {
+        path: 'confirm-email',
+        loadComponent: () =>
+          import('./features/auth/confirm-email-page.component').then(m => m.ConfirmEmailPageComponent)
+      },
+      {
         path: 'account',
         canActivate: [authGuard],
         loadComponent: () =>

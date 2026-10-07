@@ -4,6 +4,7 @@ import { Product } from '../models/product.model';
 import { salePrice } from '../mappers/product.mapper';
 
 const CART_KEY = 'flashtech.cart';
+export const MAX_ORDER_QUANTITY = 3;
 
 @Injectable({ providedIn: 'root' })
 export class CartService {
@@ -25,7 +26,7 @@ export class CartService {
     const current = this.items();
     const existing = current.find(i => i.productId === product.id);
     if (existing) {
-      const nextQty = Math.min(existing.quantity + qty, product.stock);
+      const nextQty = Math.min(existing.quantity + qty, product.stock, MAX_ORDER_QUANTITY);
       this.write(current.map(i => (i.productId === product.id ? { ...i, quantity: nextQty } : i)));
       return;
     }
@@ -37,7 +38,7 @@ export class CartService {
         brand: product.brand,
         thumbnail: product.thumbnail,
         unitPrice,
-        quantity: Math.min(qty, product.stock),
+        quantity: Math.max(1, Math.min(qty, product.stock, MAX_ORDER_QUANTITY)),
         stock: product.stock
       }
     ]);
@@ -47,7 +48,7 @@ export class CartService {
     const current = this.items();
     const item = current.find(i => i.productId === productId);
     if (!item) return;
-    const next = Math.max(1, Math.min(quantity, item.stock));
+    const next = Math.max(1, Math.min(quantity, item.stock, MAX_ORDER_QUANTITY));
     this.write(current.map(i => (i.productId === productId ? { ...i, quantity: next } : i)));
   }
 
@@ -67,7 +68,13 @@ export class CartService {
   private read(): CartItem[] {
     try {
       const raw = localStorage.getItem(CART_KEY);
-      return raw ? (JSON.parse(raw) as CartItem[]) : [];
+      const parsed: unknown = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((item): item is CartItem =>
+        typeof item?.productId === 'string' && typeof item?.title === 'string' &&
+        Number.isFinite(item?.quantity) && Number.isFinite(item?.stock) &&
+        Number.isFinite(item?.unitPrice) && item.stock > 0 && item.unitPrice >= 0
+      ).map(item => ({ ...item, quantity: Math.max(1, Math.min(item.quantity, item.stock, MAX_ORDER_QUANTITY)) }));
     } catch {
       return [];
     }
